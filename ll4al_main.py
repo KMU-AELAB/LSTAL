@@ -191,6 +191,8 @@ if __name__ == '__main__':
     plot_data = {'X': [], 'Y': [], 'legend': ['Backbone Loss', 'Module Loss', 'Total Loss']}
 
     for trial in range(TRIALS):
+        fp = open(f'record_{trial + 1}.txt', 'w')
+
         indices = list(range(NUM_TRAIN))
         random.shuffle(indices)
         labeled_set = indices[:INITC]
@@ -225,6 +227,8 @@ if __name__ == '__main__':
             # Training and test
             train(models, criterion, optimizers, schedulers, dataloaders, EPOCH, EPOCHL, plot_data)
             acc = test(models, dataloaders, mode='test')
+
+            fp.write(f'{acc}\n')
             print('Trial {}/{} || Cycle {}/{} || Label set size {}: Test acc {}'.format(trial + 1, TRIALS, cycle + 1,
                                                                                         CYCLES, len(labeled_set), acc))
 
@@ -257,6 +261,7 @@ if __name__ == '__main__':
                                               pin_memory=True)
 
         # Save a checkpoint
+        fp.close()
         torch.save(
             {
             'trial': trial + 1,
