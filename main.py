@@ -233,7 +233,7 @@ if __name__ == '__main__':
         resnet18 = resnet.ResNet18(num_classes=10).cuda()
         feature_module = featurenet.FeatureNet().cuda()
 
-        vae = vae.VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM)
+        vae = vae.VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM).cuda()
         checkpoint = torch.load(f'vae/ae_{trial + 1}.pth.tar')
         vae.load_state_dict(checkpoint['ae_state_dict'])
 
