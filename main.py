@@ -21,7 +21,6 @@ from config import *
 from data.transform import Cifar
 
 import models.resnet as resnet
-import models.lossnet as lossnet
 import models.vae as vae
 import models.featurenet as featurenet
 
@@ -231,7 +230,7 @@ if __name__ == '__main__':
 
         # Model
         resnet18 = resnet.ResNet18(num_classes=10).cuda()
-        feature_module = featurenet.FeatureNet().cuda()
+        feature_module = featurenet.FeatureNet(out_dim=EMBEDDING_DIM).cuda()
 
         vae = vae.VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM)
         checkpoint = torch.load(f'vae/ae_{trial + 1}.pth.tar')
