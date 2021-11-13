@@ -47,28 +47,6 @@ elif DATASET == 'cifar100':
     data_test = CIFAR100('./data', train=False, download=True, transform=transforms.test_transform)
 
 
-# Loss Prediction Loss
-def LossPredLoss(input, target, margin=1.0, reduction='mean'):
-    assert len(input) % 2 == 0, 'the batch size is not even.'
-    assert input.shape == input.flip(0).shape
-    
-    input = (input - input.flip(0))[:len(input)//2]
-    target = (target - target.flip(0))[:len(target)//2]
-    target = target.detach()
-
-    one = 2 * torch.sign(torch.clamp(target, min=0)) - 1
-
-    if reduction == 'mean':
-        loss = torch.sum(torch.clamp(margin - one * input, min=0))
-        loss = loss / input.size(0)
-    elif reduction == 'none':
-        loss = torch.clamp(margin - one * input, min=0)
-    else:
-        NotImplementedError()
-    
-    return loss
-
-
 # Train Utils
 iters = 0
 
@@ -132,7 +110,7 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
         _, target_feature, _, _ = models['vae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = m_criterion(pred_feature, target_feature.detach())
+        m_module_loss = m_criterion(pred_feature, target_feature.detach()) / target_feature.size(0)
         loss = m_backbone_loss + WEIGHT * m_module_loss
 
         loss.backward()
@@ -211,21 +189,26 @@ def train(models, criterion, m_criterion, optimizers, schedulers, dataloaders, n
     print('>> Finished.')
 
 
-def get_uncertainty(models, unlabeled_loader):
+def get_uncertainty(models, m_criterion, unlabeled_loader):
     models['backbone'].eval()
     models['module'].eval()
-    uncertainty = torch.tensor([]).cuda()
+    models['vae'].eval()
 
+    uncertainty = torch.tensor([]).cuda()
     with torch.no_grad():
         for (inputs, labels) in unlabeled_loader:
             inputs = inputs.cuda()
             # labels = labels.cuda()
 
-            scores, features = models['backbone'](inputs)
-            pred_loss = models['module'](features)
-            pred_loss = pred_loss.view(pred_loss.size(0))
+            _, features = models['backbone'](inputs)
+            pred_feature = models['module'](features)
+            pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
 
-            uncertainty = torch.cat((uncertainty, pred_loss), 0)
+            target_feature = models['vae'](inputs)
+
+            loss = m_criterion(pred_feature, target_feature)
+
+            uncertainty = torch.cat((uncertainty, loss), 0)
     
     return uncertainty.cpu()
 
@@ -262,7 +245,7 @@ if __name__ == '__main__':
         for cycle in range(CYCLES):
             # Loss, criterion and scheduler (re)initialization
             criterion = nn.CrossEntropyLoss(reduction='none')
-            m_criterion = nn.MSELoss(reduction='mean')
+            m_criterion = nn.MSELoss(reduction='none')
             optim_backbone = optim.SGD(models['backbone'].parameters(), lr=LR,
                                        momentum=MOMENTUM, weight_decay=WDECAY)
             optim_module = optim.SGD(models['module'].parameters(), lr=LR,
@@ -291,11 +274,10 @@ if __name__ == '__main__':
             # Create unlabeled dataloader for the unlabeled subset
             unlabeled_loader = DataLoader(data_unlabeled, batch_size=BATCH,
                                           sampler=SubsetSequentialSampler(subset),
-                                          # more convenient if we maintain the order of subset
                                           pin_memory=True)
 
             # Measure uncertainty of each data points in the subset
-            uncertainty = get_uncertainty(models, unlabeled_loader)
+            uncertainty = get_uncertainty(models, m_criterion, unlabeled_loader)
 
             # Index in ascending order
             arg = np.argsort(uncertainty)
