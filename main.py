@@ -86,6 +86,7 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
     models['vae'].eval()
     global iters
 
+    _weight = WEIGHT
     for data in tqdm(dataloaders['train'], leave=False, total=len(dataloaders['train'])):
         inputs = data[0].cuda()
         labels = data[1].cuda()
@@ -98,7 +99,7 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
         target_loss = criterion(scores, labels)
 
         if epoch > epoch_loss:
-            WEIGHT = 0.5
+            _weight = 0.5
             features[0] = features[0].detach()
             features[1] = features[1].detach()
             features[2] = features[2].detach()
@@ -109,8 +110,8 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
         _, target_feature, _, _ = models['vae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = m_criterion(pred_feature, target_feature.detach()) / target_feature.size(0)
-        loss = m_backbone_loss + WEIGHT * m_module_loss
+        m_module_loss = toroch.sum(m_criterion(pred_feature, target_feature.detach())) / target_feature.size(0)
+        loss = m_backbone_loss + _weight * m_module_loss
 
         loss.backward()
         optimizers['backbone'].step()
