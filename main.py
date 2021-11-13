@@ -50,7 +50,7 @@ elif DATASET == 'cifar100':
 iters = 0
 
 
-def additional_train(models, m_criterion, optimizers, dataloaders):
+def additional_train(models, optimizers, dataloaders):
     models['vae'].eval()
     models['backbone'].eval()
     models['module'].train()
@@ -73,7 +73,7 @@ def additional_train(models, m_criterion, optimizers, dataloaders):
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
         _, target_feature, _, _ = models['vae'](inputs)
 
-        loss = m_criterion(pred_feature, target_feature.detach())
+        loss = torch.mean(torch.sum((pred_feature - target_feature.detach()) ** 2, dim=1))
 
         loss.backward()
         optimizers['module'].step()
