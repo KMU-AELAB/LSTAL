@@ -73,8 +73,7 @@ def additional_train(models, m_criterion, optimizers, dataloaders):
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
         _, target_feature, _, _ = models['vae'](inputs)
 
-        m_module_loss = m_criterion(pred_feature, target_feature.detach())
-        loss = m_module_loss
+        loss = torch.sum(m_criterion(pred_feature, target_feature.detach())) / target_feature.size(0)
 
         loss.backward()
         optimizers['module'].step()
