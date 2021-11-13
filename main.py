@@ -168,7 +168,7 @@ def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, ep
     for epoch in range(num_epochs, num_epochs + (num_epochs // 2)):
         schedulers['module'].step()
 
-        additional_train(models, m_criterion, optimizers, dataloaders)
+        additional_train(models, optimizers, dataloaders)
 
         # Save a checkpoint
         if False and epoch % 5 == 4:
