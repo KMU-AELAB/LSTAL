@@ -73,13 +73,13 @@ def additional_train(models, m_criterion, optimizers, dataloaders):
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
         _, target_feature, _, _ = models['vae'](inputs)
 
-        loss = torch.sum(m_criterion(pred_feature, target_feature.detach())) / target_feature.size(0)
+        loss = m_criterion(pred_feature, target_feature.detach())
 
         loss.backward()
         optimizers['module'].step()
 
 
-def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, epoch_loss):
+def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
     models['backbone'].train()
     models['module'].train()
     models['vae'].eval()
@@ -109,7 +109,7 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
         _, target_feature, _, _ = models['vae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = torch.sum(m_criterion(pred_feature, target_feature.detach())) / target_feature.size(0)
+        m_module_loss = torch.mean(torch.sum((pred_feature - target_feature.detach()) ** 2, dim=1))
         loss = m_backbone_loss + _weight * m_module_loss
 
         loss.backward()
@@ -137,7 +137,7 @@ def test(models, dataloaders, mode='val'):
     return 100 * correct / total
 
 
-def train(models, criterion, m_criterion, optimizers, schedulers, dataloaders, num_epochs, epoch_loss):
+def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, epoch_loss):
     print('>> Train a Model.')
     best_acc = 0.
     checkpoint_dir = os.path.join(f'./{DATASET}', 'train', 'weights')
@@ -148,7 +148,7 @@ def train(models, criterion, m_criterion, optimizers, schedulers, dataloaders, n
         schedulers['backbone'].step()
         schedulers['module'].step()
 
-        train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, epoch_loss)
+        train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss)
 
         # Save a checkpoint
         if False and epoch % 5 == 4:
@@ -188,7 +188,7 @@ def train(models, criterion, m_criterion, optimizers, schedulers, dataloaders, n
     print('>> Finished.')
 
 
-def get_uncertainty(models, m_criterion, unlabeled_loader):
+def get_uncertainty(models, unlabeled_loader):
     models['backbone'].eval()
     models['module'].eval()
     models['vae'].eval()
@@ -197,7 +197,6 @@ def get_uncertainty(models, m_criterion, unlabeled_loader):
     with torch.no_grad():
         for (inputs, labels) in unlabeled_loader:
             inputs = inputs.cuda()
-            # labels = labels.cuda()
 
             _, features = models['backbone'](inputs)
             pred_feature = models['module'](features)
@@ -205,7 +204,7 @@ def get_uncertainty(models, m_criterion, unlabeled_loader):
 
             _, target_feature, _, _ = models['vae'](inputs)
 
-            loss = m_criterion(pred_feature, target_feature.detach())
+            loss = torch.sum((pred_feature - target_feature.detach()) ** 2, dim=1)
 
             uncertainty = torch.cat((uncertainty, loss), 0)
     
@@ -245,7 +244,6 @@ if __name__ == '__main__':
         for cycle in range(CYCLES):
             # Loss, criterion and scheduler (re)initialization
             criterion = nn.CrossEntropyLoss(reduction='none')
-            m_criterion = nn.MSELoss(reduction='none')
             optim_backbone = optim.SGD(models['backbone'].parameters(), lr=LR,
                                        momentum=MOMENTUM, weight_decay=WDECAY)
             optim_module = optim.SGD(models['module'].parameters(), lr=LR,
@@ -257,7 +255,7 @@ if __name__ == '__main__':
             schedulers = {'backbone': sched_backbone, 'module': sched_module}
 
             # Training and test
-            train(models, criterion, m_criterion, optimizers, schedulers, dataloaders, EPOCH, EPOCHL)
+            train(models, criterion, optimizers, schedulers, dataloaders, EPOCH, EPOCHL)
             acc = test(models, dataloaders, mode='test')
 
             fp.write(f'{acc}\n')
@@ -277,7 +275,7 @@ if __name__ == '__main__':
                                           pin_memory=True)
 
             # Measure uncertainty of each data points in the subset
-            uncertainty = get_uncertainty(models, m_criterion, unlabeled_loader)
+            uncertainty = get_uncertainty(models, unlabeled_loader)
 
             # Index in ascending order
             arg = np.argsort(uncertainty)
