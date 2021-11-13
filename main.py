@@ -110,7 +110,7 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
         _, target_feature, _, _ = models['vae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = toroch.sum(m_criterion(pred_feature, target_feature.detach())) / target_feature.size(0)
+        m_module_loss = torch.sum(m_criterion(pred_feature, target_feature.detach())) / target_feature.size(0)
         loss = m_backbone_loss + _weight * m_module_loss
 
         loss.backward()
