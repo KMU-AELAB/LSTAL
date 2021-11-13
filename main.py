@@ -203,9 +203,9 @@ def get_uncertainty(models, m_criterion, unlabeled_loader):
             pred_feature = models['module'](features)
             pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
 
-            target_feature = models['vae'](inputs)
+            _, target_feature, _, _ = models['vae'](inputs)
 
-            loss = m_criterion(pred_feature, target_feature)
+            loss = m_criterion(pred_feature, target_feature.detach())
 
             uncertainty = torch.cat((uncertainty, loss), 0)
     
