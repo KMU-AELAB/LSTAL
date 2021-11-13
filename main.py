@@ -233,9 +233,10 @@ if __name__ == '__main__':
         resnet18 = resnet.ResNet18(num_classes=10).cuda()
         feature_module = featurenet.FeatureNet().cuda()
 
-        vae = vae.VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM).cuda()
+        vae = vae.VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM)
         checkpoint = torch.load(f'vae/ae_{trial + 1}.pth.tar')
         vae.load_state_dict(checkpoint['ae_state_dict'])
+        vae.cuda()
 
         models = {'backbone': resnet18, 'module': feature_module, 'vae': vae}
 
