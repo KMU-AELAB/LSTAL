@@ -73,7 +73,7 @@ def additional_train(models, m_criterion, optimizers, dataloaders):
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
         _, target_feature, _, _ = models['vae'](inputs)
 
-        loss = torch.mean(m_criterion(pred_feature, target_feature.detach()))
+        loss = torch.mean(1 - m_criterion(pred_feature, target_feature.detach()))
 
         loss.backward()
         optimizers['module'].step()
@@ -98,7 +98,7 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
         target_loss = criterion(scores, labels)
 
         if epoch > epoch_loss:
-            _weight = 0.1
+            _weight = 0.5
             features[0] = features[0].detach()
             features[1] = features[1].detach()
             features[2] = features[2].detach()
@@ -109,7 +109,7 @@ def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, 
         _, target_feature, _, _ = models['vae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = torch.mean(m_criterion(pred_feature, target_feature.detach()))
+        m_module_loss = torch.mean(1 - m_criterion(pred_feature, target_feature.detach()))
         loss = m_backbone_loss + _weight * m_module_loss
 
         loss.backward()
@@ -204,7 +204,7 @@ def get_uncertainty(models, m_criterion, unlabeled_loader):
 
             _, target_feature, _, _ = models['vae'](inputs)
 
-            loss = torch.sum(m_criterion(pred_feature, target_feature.detach()))
+            loss = torch.sum(1 - m_criterion(pred_feature, target_feature.detach()))
 
             uncertainty = torch.cat((uncertainty, loss), 0)
     
