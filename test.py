@@ -50,11 +50,7 @@ elif DATASET == 'cifar100':
 iters = 0
 
 
-def cosine_distance(feature1, feature2):
-    return 1 - nn.CosineSimilarity(feature1, feature2)
-
-
-def additional_train(models, optimizers, dataloaders):
+def additional_train(models, m_criterion, optimizers, dataloaders):
     models['vae'].eval()
     models['backbone'].eval()
     models['module'].train()
@@ -77,13 +73,13 @@ def additional_train(models, optimizers, dataloaders):
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
         _, target_feature, _, _ = models['vae'](inputs)
 
-        loss = torch.mean(cosine_distance(pred_feature, target_feature.detach()))
+        loss = torch.mean(m_criterion(pred_feature, target_feature.detach()))
 
         loss.backward()
         optimizers['module'].step()
 
 
-def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
+def train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, epoch_loss):
     models['backbone'].train()
     models['module'].train()
     models['vae'].eval()
@@ -102,7 +98,7 @@ def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
         target_loss = criterion(scores, labels)
 
         if epoch > epoch_loss:
-            _weight = 0.001
+            _weight = 0.1
             features[0] = features[0].detach()
             features[1] = features[1].detach()
             features[2] = features[2].detach()
@@ -113,7 +109,7 @@ def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
         _, target_feature, _, _ = models['vae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = torch.mean(cosine_distance(pred_feature, target_feature.detach()))
+        m_module_loss = torch.mean(m_criterion(pred_feature, target_feature.detach()))
         loss = m_backbone_loss + _weight * m_module_loss
 
         loss.backward()
@@ -141,7 +137,7 @@ def test(models, dataloaders, mode='val'):
     return 100 * correct / total
 
 
-def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, epoch_loss):
+def train(models, criterion, m_criterion, optimizers, schedulers, dataloaders, num_epochs, epoch_loss):
     print('>> Train a Model.')
     best_acc = 0.
     checkpoint_dir = os.path.join(f'./{DATASET}', 'train', 'weights')
@@ -152,7 +148,7 @@ def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, ep
         schedulers['backbone'].step()
         schedulers['module'].step()
 
-        train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss)
+        train_epoch(models, criterion, m_criterion, optimizers, dataloaders, epoch, epoch_loss)
 
         # Save a checkpoint
         if False and epoch % 5 == 4:
@@ -172,7 +168,7 @@ def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, ep
     for epoch in range(num_epochs, num_epochs + (num_epochs // 2)):
         schedulers['module'].step()
 
-        additional_train(models, optimizers, dataloaders)
+        additional_train(models, m_criterion, optimizers, dataloaders)
 
         # Save a checkpoint
         if False and epoch % 5 == 4:
@@ -192,7 +188,7 @@ def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, ep
     print('>> Finished.')
 
 
-def get_uncertainty(models, unlabeled_loader):
+def get_uncertainty(models, m_criterion, unlabeled_loader):
     models['backbone'].eval()
     models['module'].eval()
     models['vae'].eval()
@@ -208,7 +204,7 @@ def get_uncertainty(models, unlabeled_loader):
 
             _, target_feature, _, _ = models['vae'](inputs)
 
-            loss = cosine_distance(pred_feature, target_feature.detach())
+            loss = torch.sum(m_criterion(pred_feature, target_feature.detach()))
 
             uncertainty = torch.cat((uncertainty, loss), 0)
     
@@ -248,6 +244,7 @@ if __name__ == '__main__':
         for cycle in range(CYCLES):
             # Loss, criterion and scheduler (re)initialization
             criterion = nn.CrossEntropyLoss(reduction='none')
+            m_criterion = nn.CosineSimilarity()
             optim_backbone = optim.SGD(models['backbone'].parameters(), lr=LR,
                                        momentum=MOMENTUM, weight_decay=WDECAY)
             optim_module = optim.SGD(models['module'].parameters(), lr=LR,
@@ -259,7 +256,7 @@ if __name__ == '__main__':
             schedulers = {'backbone': sched_backbone, 'module': sched_module}
 
             # Training and test
-            train(models, criterion, optimizers, schedulers, dataloaders, EPOCH, EPOCHL)
+            train(models, criterion, m_criterion, optimizers, schedulers, dataloaders, EPOCH, EPOCHL)
             acc = test(models, dataloaders, mode='test')
 
             fp.write(f'{acc}\n')
@@ -279,7 +276,7 @@ if __name__ == '__main__':
                                           pin_memory=True)
 
             # Measure uncertainty of each data points in the subset
-            uncertainty = get_uncertainty(models, unlabeled_loader)
+            uncertainty = get_uncertainty(models, m_criterion, unlabeled_loader)
 
             # Index in ascending order
             arg = np.argsort(uncertainty)
