@@ -7,7 +7,7 @@ ADDENDUM = 2500  # K
 INITC = 5000
 
 MARGIN = 1.0  # xi
-WEIGHT = 1.0  # lambda
+WEIGHT = 0.005  # lambda
 
 TRIALS = 5
 CYCLES = 7

@@ -98,7 +98,7 @@ def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
         target_loss = criterion(scores, labels)
 
         if epoch > epoch_loss:
-            _weight = 0.5
+            _weight = 0.001
             features[0] = features[0].detach()
             features[1] = features[1].detach()
             features[2] = features[2].detach()
