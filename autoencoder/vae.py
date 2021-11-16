@@ -114,7 +114,7 @@ def train(model, criterion, opt, scheduler, dataloaders, num_epochs, trial):
                         'epoch': epoch + 1,
                         'ae_state_dict': model.state_dict(),
                     },
-                    f'../trained_vae/ae_{trial}.pth'
+                    f'../trained_vae/ae_{trial+1}.pth'
                 )
             print('Val loss: {:.3f} \t Best loss: {:.3f}'.format(_loss, best_loss))
     print('>> Finished.')
