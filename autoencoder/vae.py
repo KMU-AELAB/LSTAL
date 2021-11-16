@@ -95,7 +95,7 @@ def test(model, criterion, dataloaders, mode='val'):
 
 def train(model, criterion, opt, scheduler, dataloaders, num_epochs, trial):
     print('>> Train a Model.')
-    best_loss = 0.
+    best_loss = 999999999.
     checkpoint_dir = os.path.join(f'./{DATASET}', 'train', 'weights')
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
