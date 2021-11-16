@@ -78,29 +78,24 @@ def train_epoch(model, criterion, opt, dataloaders):
     return _loss / cnt
 
 
-def test(models, dataloaders, mode='val'):
+def test(model, criterion, dataloaders, mode='val'):
     assert mode == 'val' or mode == 'test'
-    models['backbone'].eval()
-    models['module'].eval()
+    model.eval()
 
-    total = 0
-    correct = 0
+    loss = 0.
     with torch.no_grad():
-        for (inputs, labels) in dataloaders[mode]:
+        for (inputs, _) in dataloaders[mode]:
             inputs = inputs.cuda()
-            labels = labels.cuda()
 
-            scores, _ = models['backbone'](inputs)
-            _, preds = torch.max(scores.data, 1)
-            total += labels.size(0)
-            correct += (preds == labels).sum().item()
-    
-    return 100 * correct / total
+            recon, _, _, _ = model(inputs)
+            loss += criterion(recon, inputs)
+
+    return loss
 
 
 def train(model, criterion, opt, scheduler, dataloaders, num_epochs, trial):
     print('>> Train a Model.')
-    best_acc = 0.
+    best_loss = 0.
     checkpoint_dir = os.path.join(f'./{DATASET}', 'train', 'weights')
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -111,9 +106,9 @@ def train(model, criterion, opt, scheduler, dataloaders, num_epochs, trial):
 
         # Save a checkpoint
         if epoch % 5 == 4:
-            acc = test(model, dataloaders, 'test')
-            if best_acc < acc:
-                best_acc = acc
+            _loss = test(model, criterion, dataloaders, 'test')
+            if best_loss > _loss:
+                best_loss = _loss
                 torch.save(
                     {
                         'epoch': epoch + 1,
@@ -121,7 +116,7 @@ def train(model, criterion, opt, scheduler, dataloaders, num_epochs, trial):
                     },
                     f'../trained_vae/ae_{trial}.pth'
                 )
-            print('Val Acc: {:.3f} \t Best Acc: {:.3f}'.format(acc, best_acc))
+            print('Val loss: {:.3f} \t Best loss: {:.3f}'.format(_loss, best_loss))
     print('>> Finished.')
 
 
