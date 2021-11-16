@@ -38,13 +38,13 @@ torch.backends.cudnn.deterministic = True
 transforms = Cifar()
 
 if DATASET == 'cifar10':
-    data_train = CIFAR10('./data', train=True, download=True, transform=transforms.transform)
-    data_unlabeled = CIFAR10('./data', train=True, download=True, transform=transforms.transform)
-    data_test = CIFAR10('./data', train=False, download=True, transform=transforms.transform)
+    data_train = CIFAR10('../data', train=True, download=True, transform=transforms.transform)
+    data_unlabeled = CIFAR10('../data', train=True, download=True, transform=transforms.transform)
+    data_test = CIFAR10('../data', train=False, download=True, transform=transforms.transform)
 elif DATASET == 'cifar100':
-    data_train = CIFAR100('./data', train=True, download=True, transform=transforms.transform)
-    data_unlabeled = CIFAR100('./data', train=True, download=True, transform=transforms.transform)
-    data_test = CIFAR100('./data', train=False, download=True, transform=transforms.transform)
+    data_train = CIFAR100('../data', train=True, download=True, transform=transforms.transform)
+    data_unlabeled = CIFAR100('../data', train=True, download=True, transform=transforms.transform)
+    data_test = CIFAR100('../data', train=False, download=True, transform=transforms.transform)
 
 
 # Train Utils
