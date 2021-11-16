@@ -70,10 +70,10 @@ def train_epoch(model, criterion, opt, dataloaders):
 
         loss = recon_loss + (0.001 * kld_loss)
 
-        _loss += loss
-
         loss.backward()
         opt.step()
+
+        _loss += loss
 
     return _loss / cnt
 
@@ -131,11 +131,9 @@ if __name__ == '__main__':
         model = VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM).cuda()
         torch.backends.cudnn.benchmark = False
 
-        # Loss, criterion and scheduler (re)initialization
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss().cuda()
         opt = optim.Adam(model.parameters(), lr=LR)
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, mode='min', factor=0.8, cooldown=4)
 
-        # Training and test
         train(model, criterion, opt, scheduler, dataloaders, EPOCH, trial)
