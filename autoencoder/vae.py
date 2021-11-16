@@ -68,7 +68,7 @@ def train_epoch(model, criterion, opt, dataloaders):
         recon_loss = criterion(recon, inputs)
         kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim=1), dim=0)
 
-        loss = recon_loss + (0.001 * kld_loss)
+        loss = recon_loss + (0.01 * kld_loss)
 
         loss.backward()
         opt.step()
