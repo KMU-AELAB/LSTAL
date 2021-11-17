@@ -39,10 +39,12 @@ transforms = Cifar()
 if DATASET == 'cifar10':
     data_train = CIFAR10('./data', train=True, download=True, transform=transforms.train_transform)
     data_unlabeled = CIFAR10('./data', train=True, download=True, transform=transforms.test_transform)
+    data_additional = CIFAR10('./data', train=True, download=True, transform=transforms.test_transform)
     data_test = CIFAR10('./data', train=False, download=True, transform=transforms.test_transform)
 elif DATASET == 'cifar100':
     data_train = CIFAR100('./data', train=True, download=True, transform=transforms.train_transform)
     data_unlabeled = CIFAR100('./data', train=True, download=True, transform=transforms.test_transform)
+    data_additional = CIFAR100('./data', train=True, download=True, transform=transforms.test_transform)
     data_test = CIFAR100('./data', train=False, download=True, transform=transforms.test_transform)
 
 
@@ -57,7 +59,7 @@ def additional_train(models, optimizers, dataloaders):
     global iters
 
     _loss, cnt = 0., 0
-    for data in tqdm(dataloaders['train'], leave=False, total=len(dataloaders['train'])):
+    for data in tqdm(dataloaders['additional'], leave=False, total=len(dataloaders['additional'])):
         cnt += 1
         iters += 1
 
@@ -201,7 +203,10 @@ if __name__ == '__main__':
                                   sampler=SubsetRandomSampler(labeled_set),
                                   pin_memory=True)
         test_loader = DataLoader(data_test, batch_size=BATCH)
-        dataloaders = {'train': train_loader, 'test': test_loader}
+        additional_loader = DataLoader(data_additional, batch_size=BATCH,
+                                       sampler=SubsetRandomSampler(labeled_set),
+                                       pin_memory=True)
+        dataloaders = {'train': train_loader, 'test': test_loader, 'additional': additional_loader}
 
         # Model
         resnet18 = resnet.ResNet18(num_classes=CLS_CNT).cuda()
