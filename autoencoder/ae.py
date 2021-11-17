@@ -73,7 +73,7 @@ def test(model, criterion, dataloaders, mode='val'):
         for (inputs, _) in dataloaders[mode]:
             inputs = inputs.cuda()
 
-            recon, _, _, _ = model(inputs)
+            recon, _ = model(inputs)
             loss += criterion(recon, inputs)
 
     return loss
