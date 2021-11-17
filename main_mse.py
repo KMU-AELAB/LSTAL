@@ -232,7 +232,7 @@ if __name__ == '__main__':
         feature_module = featurenet.FeatureNet(out_dim=EMBEDDING_DIM).cuda()
 
         target_module = vae.VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM)
-        checkpoint = torch.load(f'trained_ae/ae_{trial + 1}.pth.tar')
+        checkpoint = torch.load(f'trained_ae/vae_.pth.tar')
         target_module.load_state_dict(checkpoint['ae_state_dict'])
         target_module.cuda()
 
