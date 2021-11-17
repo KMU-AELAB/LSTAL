@@ -86,9 +86,8 @@ def train(model, criterion, opt, scheduler, dataloaders, num_epochs):
     print('>> Train a Model.')
     best_loss = 999999999.
     summary_writer = SummaryWriter(log_dir=os.path.join('./'), comment='VAE')
-    checkpoint_dir = os.path.join(f'./{DATASET}', 'train', 'weights')
-    if not os.path.exists(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
+    if not os.path.exists('../trained_ae'):
+        os.makedirs('../trained_ae')
     
     for epoch in range(num_epochs):
         loss = train_epoch(model, criterion, opt, dataloaders, summary_writer, epoch)
