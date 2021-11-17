@@ -51,7 +51,7 @@ iters = 0
 
 
 def additional_train(models, optimizers, dataloaders):
-    models['vae'].eval()
+    models['ae'].eval()
     models['backbone'].eval()
     models['module'].train()
     global iters
@@ -71,9 +71,9 @@ def additional_train(models, optimizers, dataloaders):
 
         pred_feature = models['module'](features)
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
-        _, target_feature, _, _ = models['vae'](inputs)
+        ae_out = models['ae'](inputs)
 
-        loss = torch.mean(torch.sum((pred_feature - target_feature.detach()) ** 2, dim=1))
+        loss = torch.mean(torch.sum((pred_feature - ae_out[1].detach()) ** 2, dim=1))
 
         loss.backward()
         optimizers['module'].step()
@@ -82,7 +82,7 @@ def additional_train(models, optimizers, dataloaders):
 def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
     models['backbone'].train()
     models['module'].train()
-    models['vae'].eval()
+    models['ae'].eval()
     global iters
 
     _weight = WEIGHT
@@ -106,10 +106,10 @@ def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
 
         pred_feature = models['module'](features)
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
-        _, target_feature, _, _ = models['vae'](inputs)
+        ae_out = models['ae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = torch.mean(torch.sum((pred_feature - target_feature.detach()) ** 2, dim=1))
+        m_module_loss = torch.mean(torch.sum((pred_feature - ae_out[1].detach()) ** 2, dim=1))
         loss = m_backbone_loss + _weight * m_module_loss
 
         loss.backward()
@@ -191,7 +191,7 @@ def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, ep
 def get_uncertainty(models, unlabeled_loader):
     models['backbone'].eval()
     models['module'].eval()
-    models['vae'].eval()
+    models['ae'].eval()
 
     uncertainty = torch.tensor([]).cuda()
     with torch.no_grad():
@@ -202,9 +202,9 @@ def get_uncertainty(models, unlabeled_loader):
             pred_feature = models['module'](features)
             pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
 
-            _, target_feature, _, _ = models['vae'](inputs)
+            ae_out = models['ae'](inputs)
 
-            loss = torch.sum((pred_feature - target_feature.detach()) ** 2, dim=1)
+            loss = torch.sum((pred_feature - ae_out[1].detach()) ** 2, dim=1)
 
             uncertainty = torch.cat((uncertainty, loss), 0)
     
@@ -228,15 +228,15 @@ if __name__ == '__main__':
         dataloaders = {'train': train_loader, 'test': test_loader}
 
         # Model
-        resnet18 = resnet.ResNet18(num_classes=10).cuda()
+        resnet18 = resnet.ResNet18(num_classes=CLS_CNT).cuda()
         feature_module = featurenet.FeatureNet(out_dim=EMBEDDING_DIM).cuda()
 
         target_module = vae.VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM)
-        checkpoint = torch.load(f'trained_ae/vae_.pth.tar')
+        checkpoint = torch.load(f'trained_ae/vae.pth.tar')
         target_module.load_state_dict(checkpoint['ae_state_dict'])
         target_module.cuda()
 
-        models = {'backbone': resnet18, 'module': feature_module, 'vae': target_module}
+        models = {'backbone': resnet18, 'module': feature_module, 'ae': target_module}
 
         torch.backends.cudnn.benchmark = False
 
