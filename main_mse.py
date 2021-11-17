@@ -73,7 +73,7 @@ def additional_train(models, optimizers, dataloaders):
         pred_feature = pred_feature.view([-1, EMBEDDING_DIM])
         ae_out = models['ae'](inputs)
 
-        loss = torch.mean(torch.sum((pred_feature - ae_out[1].detach()) ** 2, dim=1))
+        loss = torch.mean(torch.mean((pred_feature - ae_out[1].detach()) ** 2, dim=1))
 
         loss.backward()
         optimizers['module'].step()
@@ -109,7 +109,7 @@ def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
         ae_out = models['ae'](inputs)
 
         m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-        m_module_loss = torch.mean(torch.sum((pred_feature - ae_out[1].detach()) ** 2, dim=1))
+        m_module_loss = torch.mean(torch.mean((pred_feature - ae_out[1].detach()) ** 2, dim=1))
         loss = m_backbone_loss + _weight * m_module_loss
 
         loss.backward()
