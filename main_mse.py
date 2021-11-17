@@ -56,9 +56,12 @@ def additional_train(models, optimizers, dataloaders):
     models['module'].train()
     global iters
 
+    _loss, cnt = 0., 0
     for data in tqdm(dataloaders['train'], leave=False, total=len(dataloaders['train'])):
-        inputs = data[0].cuda()
+        cnt += 1
         iters += 1
+
+        inputs = data[0].cuda()
 
         optimizers['module'].zero_grad()
 
@@ -76,7 +79,11 @@ def additional_train(models, optimizers, dataloaders):
         loss = torch.mean(torch.mean((pred_feature - ae_out[1].detach()) ** 2, dim=1))
 
         loss.backward()
-        optimizers['module'].step()
+        optimizers['additional'].step()
+
+        _loss += loss
+
+    return _loss / cnt
 
 
 def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
@@ -98,7 +105,7 @@ def train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss):
         target_loss = criterion(scores, labels)
 
         if epoch > epoch_loss:
-            _weight = 0.001
+            _weight = WEIGHT / 2
             features[0] = features[0].detach()
             features[1] = features[1].detach()
             features[2] = features[2].detach()
@@ -139,7 +146,7 @@ def test(models, dataloaders, mode='val'):
 
 def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, epoch_loss):
     print('>> Train a Model.')
-    best_acc = 0.
+
     checkpoint_dir = os.path.join(f'./{DATASET}', 'train', 'weights')
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -150,40 +157,9 @@ def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, ep
 
         train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss)
 
-        # Save a checkpoint
-        if False and epoch % 5 == 4:
-            acc = test(models, dataloaders, 'test')
-            if best_acc < acc:
-                best_acc = acc
-                torch.save(
-                    {
-                    'epoch': epoch + 1,
-                    'state_dict_backbone': models['backbone'].state_dict(),
-                    'state_dict_module': models['module'].state_dict()
-                    },
-                    f'{checkpoint_dir}/active_resnet18_{DATASET}.pth'
-                )
-            print('Val Acc: {:.3f} \t Best Acc: {:.3f}'.format(acc, best_acc))
-
     for epoch in range(num_epochs, num_epochs + (num_epochs // 2)):
-        schedulers['module'].step()
-
-        additional_train(models, optimizers, dataloaders)
-
-        # Save a checkpoint
-        if False and epoch % 5 == 4:
-            acc = test(models, dataloaders, 'test')
-            if best_acc < acc:
-                best_acc = acc
-                torch.save(
-                    {
-                    'epoch': epoch + 1,
-                    'state_dict_backbone': models['backbone'].state_dict(),
-                    'state_dict_module': models['module'].state_dict()
-                    },
-                    f'{checkpoint_dir}/active_resnet18_{DATASET}.pth'
-                )
-            print('Val Acc: {:.3f} \t Best Acc: {:.3f}'.format(acc, best_acc))
+        loss = additional_train(models, optimizers, dataloaders)
+        schedulers['additional'].step(loss)
 
     print('>> Finished.')
 
@@ -248,11 +224,14 @@ if __name__ == '__main__':
                                        momentum=MOMENTUM, weight_decay=WDECAY)
             optim_module = optim.SGD(models['module'].parameters(), lr=LR,
                                      momentum=MOMENTUM, weight_decay=WDECAY)
+            optim_additional = optim.Adam(models['module'].parameters(), lr=1e-3)
+
             sched_backbone = lr_scheduler.MultiStepLR(optim_backbone, milestones=MILESTONES)
             sched_module = lr_scheduler.MultiStepLR(optim_module, milestones=MILESTONES)
+            sched_additional = lr_scheduler.ReduceLROnPlateau(optim_additional, mode='min', factor=0.8, cooldown=4)
 
-            optimizers = {'backbone': optim_backbone, 'module': optim_module}
-            schedulers = {'backbone': sched_backbone, 'module': sched_module}
+            optimizers = {'backbone': optim_backbone, 'module': optim_module, 'additional': optim_additional}
+            schedulers = {'backbone': sched_backbone, 'module': sched_module, 'additional': sched_additional}
 
             # Training and test
             train(models, criterion, optimizers, schedulers, dataloaders, EPOCH, EPOCHL)
