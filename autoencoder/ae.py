@@ -11,7 +11,7 @@ from torchvision.datasets import CIFAR100, CIFAR10
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
 
-from models.vae import VAE
+from models.ae import AE
 from config import *
 from transform import Cifar
 
@@ -49,11 +49,8 @@ def train_epoch(model, criterion, opt, dataloaders, summary_writer, epoch):
         opt.zero_grad()
         inputs = data[0].cuda()
 
-        recon, features, mu, logvar = model(inputs)
-        recon_loss = criterion(recon, inputs)
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim=1), dim=0)
-
-        loss = recon_loss + (0.01 * kld_loss)
+        recon, features = model(inputs)
+        loss = criterion(recon, inputs)
 
         loss.backward()
         opt.step()
@@ -85,7 +82,7 @@ def test(model, criterion, dataloaders, mode='val'):
 def train(model, criterion, opt, scheduler, dataloaders, num_epochs):
     print('>> Train a Model.')
     best_loss = 999999999.
-    summary_writer = SummaryWriter(log_dir=os.path.join('./'), comment='VAE')
+    summary_writer = SummaryWriter(log_dir=os.path.join('./'), comment='AE')
     checkpoint_dir = os.path.join(f'./{DATASET}', 'train', 'weights')
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -103,7 +100,7 @@ def train(model, criterion, opt, scheduler, dataloaders, num_epochs):
                         'epoch': epoch + 1,
                         'ae_state_dict': model.state_dict(),
                     },
-                    f'../trained_ae/vae.pth.tar'
+                    f'../trained_ae/ae.pth.tar'
                 )
             print('Val loss: {:.3f} \t Best loss: {:.3f}'.format(_loss, best_loss))
     print('>> Finished.')
@@ -115,7 +112,7 @@ if __name__ == '__main__':
     dataloaders = {'train': train_loader, 'test': test_loader}
 
     # Model
-    model = VAE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM).cuda()
+    model = AE(NUM_RESIDUAL_LAYERS, NUM_RESIDUAL_HIDDENS, EMBEDDING_DIM).cuda()
     torch.backends.cudnn.benchmark = False
 
     criterion = nn.MSELoss().cuda()
