@@ -159,7 +159,7 @@ def train(models, criterion, optimizers, schedulers, dataloaders, num_epochs, ep
 
         train_epoch(models, criterion, optimizers, dataloaders, epoch, epoch_loss)
 
-    for epoch in range(num_epochs, num_epochs + (num_epochs // 2)):
+    for epoch in range(num_epochs):
         loss = additional_train(models, optimizers, dataloaders)
         schedulers['additional'].step(loss)
 
