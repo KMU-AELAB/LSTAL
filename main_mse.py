@@ -224,7 +224,7 @@ if __name__ == '__main__':
         # Active learning cycles
         for cycle in range(CYCLES):
             # Loss, criterion and scheduler (re)initialization
-            criterion = nn.CrossEntropyLoss(reduction='none')
+            criterion = nn.CrossEntropyLoss(reduction='none').cuda()
             optim_backbone = optim.SGD(models['backbone'].parameters(), lr=LR,
                                        momentum=MOMENTUM, weight_decay=WDECAY)
             optim_module = optim.SGD(models['module'].parameters(), lr=LR,
