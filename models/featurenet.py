@@ -41,9 +41,9 @@ class FeatureNet(nn.Module):
         out3 = self.relu(self._conv_3(in2))
         in3 = torch.cat((out3, features[3]), 1)  # 128 + 128 + 128 + 512
 
-        out3 = self.lrelu(self._conv_3(in3)) # 128 + 128 + 128 + 128
+        out4 = self.lrelu(self._conv_4(in3)) # 128 + 128 + 128 + 128
 
-        _out = self.GAP(out3)
+        _out = self.GAP(out4)
         _out = _out.view(_out.size(0), -1)
 
         out = self.linear(_out)
